@@ -1,8 +1,10 @@
-# Go-test
+## Go-test
 simple Csv to mysql migration in Golang
 
-Installation :
 
-Usage :
+# Usage :
+```
+`go run Hello-Go.go`  
+```
 
-
+database: `root:root`
