@@ -80,26 +80,39 @@ func main(){
         // fmt.Println("Line", currentLine, "content is", record, "and got", len(record), "fields\n")
 
         // check data
+            var valid = 1
             if (len(record[0]) > 50){
                 fmt.Println("Error: First Name", record[0],  "on Line:", currentLine, "is too long")
+                valid = 0
             }
             if (len(record[1]) > 50){
                 fmt.Println("Error: Last Name", record[1],  "on Line:", currentLine, "is too long")
+                valid = 0
             }
             if (len(record[2]) > 100){
                 fmt.Println("Error: Email", record[2],  "on Line:", currentLine, "is too long")
+                valid = 0
             }
-            if err != nil {
-            	log.Fatal(err)
-                break
+            if (!EmailChecker(record[2])){
+                valid = 0
             }
+
+            if valid == 1 {
             // insert DB
             Dbinsert, err := db.Prepare("INSERT INTO users(first_name, last_name, email) VALUES(?,?,?)")
             if err != nil {
                 panic(err.Error())
             }
             Dbinsert.Exec(record[0], record[1], record[2])
-    
+            }
 		currentLine += 1
 	}
+}
+
+func EmailChecker(email string) bool {
+    var emailRegexp = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+    if !emailRegexp.MatchString(email){
+        return false
+    }
+    return true
 }
