@@ -4,7 +4,7 @@ import (
 	"fmt"
     "encoding/csv"
 	"io"
-    "log"
+    "regexp"
 	"os"
     "database/sql"
 	_ "github.com/go-sql-driver/mysql"
@@ -27,13 +27,62 @@ func main(){
 	currentLine := 0
 
     // info DB
-
     dbDriver := "mysql"
     dbUser := "root"
     dbPass := "root"
     dbName := "capitaldata"
+    db := dbCreate(dbDriver, dbUser, dbPass, dbName)
 
-    // connection sql
+
+    // boucle sur Read (ligne par ligne)
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+        else if err != nil {
+			fmt.Println("Error:", err)
+		}
+        // check data
+            var valid = 1
+            if (len(record[0]) > 50){
+                fmt.Println("Error: First Name", record[0],  "on Line:", currentLine, "is too long (max:50)")
+                valid = 0
+            }
+            if (len(record[1]) > 50){
+                fmt.Println("Error: Last Name", record[1],  "on Line:", currentLine, "is too long(max:50)")
+                valid = 0
+            }
+            if (len(record[2]) > 100){
+                fmt.Println("Error: Email", record[2],  "on Line:", currentLine, "is too long(max:100)")
+                valid = 0
+            }
+            if (!EmailChecker(record[2])){
+                fmt.Println("Error: Email", record[2],  "on Line:", currentLine, "invalid format")
+                valid = 0
+            }
+
+            if valid == 1 {
+            // insert DB
+            Dbinsert, err := db.Prepare("INSERT INTO users(first_name, last_name, email) VALUES(?,?,?)")
+            if err != nil {
+                panic(err.Error())
+            }
+            Dbinsert.Exec(record[0], record[1], record[2])
+            }
+		currentLine += 1
+	}
+}
+
+func EmailChecker(email string) bool {
+    var emailRegexp = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+    if !emailRegexp.MatchString(email){
+        return false
+    }
+    return true
+}
+
+func dbCreate(dbDriver string, dbUser string, dbPass string, dbName string) *sql.DB {
     db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@/")
     if err != nil {
        panic(err)
@@ -66,53 +115,5 @@ func main(){
    if err != nil {
        panic(err)
    }
-
-    // boucle sur Read (ligne par ligne)
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			fmt.Println("Error:", err)
-		}
-
-        // DEBUGGG
-        // fmt.Println("Line", currentLine, "content is", record, "and got", len(record), "fields\n")
-
-        // check data
-            var valid = 1
-            if (len(record[0]) > 50){
-                fmt.Println("Error: First Name", record[0],  "on Line:", currentLine, "is too long")
-                valid = 0
-            }
-            if (len(record[1]) > 50){
-                fmt.Println("Error: Last Name", record[1],  "on Line:", currentLine, "is too long")
-                valid = 0
-            }
-            if (len(record[2]) > 100){
-                fmt.Println("Error: Email", record[2],  "on Line:", currentLine, "is too long")
-                valid = 0
-            }
-            if (!EmailChecker(record[2])){
-                valid = 0
-            }
-
-            if valid == 1 {
-            // insert DB
-            Dbinsert, err := db.Prepare("INSERT INTO users(first_name, last_name, email) VALUES(?,?,?)")
-            if err != nil {
-                panic(err.Error())
-            }
-            Dbinsert.Exec(record[0], record[1], record[2])
-            }
-		currentLine += 1
-	}
-}
-
-func EmailChecker(email string) bool {
-    var emailRegexp = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
-    if !emailRegexp.MatchString(email){
-        return false
-    }
-    return true
+   return db
 }
