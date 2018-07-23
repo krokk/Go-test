@@ -14,82 +14,84 @@ import (
 
 func main(){
 
-	// Ouverture fichier
+    // info DB
+    dbDriver := "mysql"
+    dbUser := "root"
+    dbPass := "root"
+    dbName := "capitaldata"
+
+    db := dbCreate(dbDriver, dbUser, dbPass, dbName)
+
+	// Lecture dossier
 	files, err := ioutil.ReadDir("./")
 	if err != nil {
 		log.Fatal(err)
 	}
 	var fileRegexp = regexp.MustCompile(`\d{4}\d{2}\d{2}_\d{2}\d{2}\d{2}_contactstream(.*).csv`)
-	for _, f := range files {
-		if fileRegexp.MatchString(f.Name()){
-			fmt.Println(f.Name())
-		}
-	}
-	file, err := os.Open("20180101_132200_contactstream2.csv")
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	// fermer le fichier a la fin
-	defer file.Close()
 
-	// option lecture CSV
-	reader := csv.NewReader(file)
-	reader.Comma = ','
-	currentLine := 0
+    // boucle sur les fichiers
+    for _, f := range files {
+        if fileRegexp.MatchString(f.Name()){
+        	file, err := os.Open(f.Name())
+        	if err != nil {
+        		fmt.Println("Error:", err)
+        		return
+        	}
+        	defer file.Close()
 
-	// info DB
-	dbDriver := "mysql"
-	dbUser := "root"
-	dbPass := "root"
-	dbName := "capitaldata"
+        	// option lecture CSV
+        	reader := csv.NewReader(file)
+        	reader.Comma = ','
+        	currentLine := 0
 
-	db := dbCreate(dbDriver, dbUser, dbPass, dbName)
+        	// boucle sur Read (ligne par ligne)
+        	for {
+        		record, err := reader.Read()
+        		if err == io.EOF {
+        			break
+        		} else if err != nil {
+        			fmt.Println("Error:", err)
+        		}
 
+                // DEBUGGG
+        		//fmt.Println("FILE:", f.Name(), "Line", currentLine, "content is", record, "and got", len(record), "fields\n")
 
-	// boucle sur Read (ligne par ligne)
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			fmt.Println("Error:", err)
-		}
+        		// check data
+        		var valid = 1
+        		if (isset(record, 1) && len(record[0]) > 50){
+        			fmt.Println("FILE:", f.Name(), "First Name", record[0], "on Line:", currentLine, "is too long (max:50)")
+        			valid = 0
+        		}
+        		if (isset(record, 2) && len(record[1]) > 50){
+        			fmt.Println("FILE:", f.Name(), "Last Name", record[1], "on Line:", currentLine, "is too long(max:50)")
+        			valid = 0
+        		}
+        		if (isset(record, 3) && len(record[2]) > 100){
+        			fmt.Println("FILE:", f.Name(), "Email", record[2], "on Line:", currentLine, "is too long(max:100)")
+        			valid = 0
+        		}
+        		if (isset(record, 3)&& !EmailChecker(record[2])){
+        			fmt.Println("FILE:", f.Name(), "Email", record[2], "on Line:", currentLine, "invalid format")
+        			valid = 0
+        		}
 
-		// DEBUGGG
-		// fmt.Println("Line", currentLine, "content is", record, "and got", len(record), "fields\n")
-
-		// check data
-		var valid = 1
-		if (len(record[0]) > 50){
-			fmt.Println("Error: First Name", record[0],  "on Line:", currentLine, "is too long (max:50)")
-			valid = 0
-		}
-		if (len(record[1]) > 50){
-			fmt.Println("Error: Last Name", record[1],  "on Line:", currentLine, "is too long(max:50)")
-			valid = 0
-		}
-		if (len(record[2]) > 100){
-			fmt.Println("Error: Email", record[2],  "on Line:", currentLine, "is too long(max:100)")
-			valid = 0
-		}
-		if (!EmailChecker(record[2])){
-			fmt.Println("Error: Email", record[2],  "on Line:", currentLine, "invalid format")
-			valid = 0
-		}
-
-		if valid == 1 {
-			// insert DB
-			Dbinsert, err := db.Prepare("INSERT INTO users(first_name, last_name, email) VALUES(?,?,?)")
-			if err != nil {
-				panic(err.Error())
-			}
-			Dbinsert.Exec(record[0], record[1], record[2])
-		}
-		currentLine += 1
-	}
+        		if valid == 1 {
+        			// insert DB
+        			Dbinsert, err := db.Prepare("INSERT INTO users(first_name, last_name, email) VALUES(?,?,?)")
+        			if err != nil {
+        				panic(err.Error())
+        			}
+                    if isset(record, 3){
+                        Dbinsert.Exec(record[0], record[1], record[2])
+                    } else {
+                        fmt.Println("FILE:", f.Name(), "missing data on line:", currentLine)
+                    }
+        		}
+        		currentLine += 1
+        	}
+        }
+    }
 }
-
 func EmailChecker(email string) bool {
 	var emailRegexp = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 	if !emailRegexp.MatchString(email){
@@ -131,4 +133,11 @@ func dbCreate(dbDriver string, dbUser string, dbPass string, dbName string) *sql
 		panic(err)
 	}
 	return db
+}
+
+
+// fix a bug when trying to access for example: record[3] but array doesn't exist
+// panic: runtime error: index out of range
+func isset(arr []string, index int) bool {
+    return (len(arr) > index)
 }
