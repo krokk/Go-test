@@ -12,6 +12,5 @@ database: `root:root`
 
 # TODO :
 
-check for duplicate entry
-check if file haven't been already treated
-Insert Date
+- check for duplicate entry
+- Insert Date
