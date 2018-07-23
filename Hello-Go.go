@@ -155,13 +155,13 @@ func file_treated(treated string) {
     	}
 		defer file.Close()
 	}
-    var file, erro = os.OpenFile(path, os.O_RDWR, 0644)
+    var file, erro = os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
     if erro != nil {
 		fmt.Println(erro)
 	}
 	defer file.Close()
 
-	_, err = file.WriteString(treated)
+	_, err = file.WriteString(treated+"\n")
     if err != nil {
         fmt.Println(err)
     }
