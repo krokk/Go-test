@@ -32,7 +32,9 @@ func main(){
     // boucle sur les fichiers
     for _, f := range files {
         if fileRegexp.MatchString(f.Name()){
+            // add to treated_file
         	file, err := os.Open(f.Name())
+            file_treated(f.Name())
         	if err != nil {
         		fmt.Println("Error:", err)
         		return
@@ -140,4 +142,31 @@ func dbCreate(dbDriver string, dbUser string, dbPass string, dbName string) *sql
 // panic: runtime error: index out of range
 func isset(arr []string, index int) bool {
     return (len(arr) > index)
+}
+
+func file_treated(treated string) {
+    path := "./.file_treated_log.txt"
+    var _, err = os.Stat(path)
+
+	if os.IsNotExist(err) {
+		var file, err = os.Create(path)
+        if err != nil {
+    		fmt.Println(err)
+    	}
+		defer file.Close()
+	}
+    var file, erro = os.OpenFile(path, os.O_RDWR, 0644)
+    if erro != nil {
+		fmt.Println(erro)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(treated)
+    if err != nil {
+        fmt.Println(err)
+    }
+    err = file.Sync()
+    if err != nil {
+        fmt.Println(err)
+    }
 }
